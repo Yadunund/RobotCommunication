@@ -1,0 +1,151 @@
+MODULE TCP_Robot
+!! Author:= Yadunund Viay
+!! Date:= 13/11/2018
+!! Description:= Setup server on ABB controller to receive pose and move robot to pose. Received poseformat: "x,y,z,q1,q2,q3,q4,c1,c4,c6,cx". Once robot is in pose, sends "InPos" back to client and waits for next pose.
+!! Modified on 29/11/2018 to constantly listen to client without exceeding retrys
+
+    var robtarget pose;    
+    VAR socketdev client_socket;
+    VAR socketdev server_socket;
+    VAR string robot_ip:="127.0.0.1";
+    VAR num robot_port:= 8081;
+
+    VAR string received_string:="";
+    VAR string send_string:="";
+    
+    VAR speeddata Speed:=v100;
+    !PERS tooldata Tool := tool0;
+  
+    PROC Main()
+    ConfJ \Off;
+    ConfL \off;
+    SingArea \Wrist;
+    
+
+    WHILE TRUE DO
+    SocketCreate server_socket;
+    SocketBind server_socket, robot_ip, robot_port;
+    SocketListen server_socket;
+    SocketAccept server_socket,client_socket;
+        
+        received_string:="";
+        socketreceive client_socket \Str:=received_string;
+        TPWrite "Received:" +received_string;
+        
+        IF received_string="Ping"THEN
+            send_string:="PingBack";
+            socketsend client_socket \Str:=send_string;
+        ELSE
+            pose:=ParseMessage(received_string);
+            !socketsend client_socket \Str:=received_string;   
+            MoveL pose, Speed,z10,tool0;
+            WaitRob\InPos;
+            send_string:="InPos";
+            socketsend client_socket \Str:=send_string;
+        ENDIF
+        
+    socketclose client_socket;
+   socketclose server_socket;
+      
+    ENDWHILE
+
+
+    ERROR
+    ResetRetryCount;
+    IF errno=ERR_SOCK_TIMEOUT THEN
+        RETRY;
+    ELSEIF ERRNO = ERR_sock_closed THEN
+        socketclose server_socket;
+        socketclose client_socket;
+        SocketCreate server_socket;
+        SocketBind server_socket, robot_ip, robot_port;
+        RETRY;
+    ELSE
+        stop;
+    endif
+            
+    ENDPROC
+    
+    FUNC robtarget ParseMessage(string value)
+        var robtarget tmptarget:= [[400.00,-200.00,300.00],[0.707107,0.000000,0.707107,0.000000],[1,1,0,0],[9E9,9E9,9E9,9E9,9E9,9E9]];
+        VAR bool ok;
+        
+        var num x;
+        var num y;
+        VAR num z;
+        VAR num q1;
+        VAR num q2;
+        VAR num q3;
+        VAR num q4;
+        VAR num c1;
+        VAR num c4;
+        VAR num c6;
+        VAR num cx;
+        
+        x:= StrFind(value,1,",");
+        y:=strFind(value,x+1,",");
+       z:= strFind(value,y+1,",");
+       q1:= strfind(value,z+1,",");
+        q2:=strfind(value,q1+1,",");
+       q3:=strfind(value,q2+1,",");
+       q4:= strfind(value, q3+1,",");
+       c1:= strfind(value,q4+1,",");
+       c4:= strfind(value,c1+1,",");
+       c6:= strfind(value, c4+1,",");
+      !cx:= strfind(value,c4+1,",");
+        
+        ok:=StrToVal(StrPart(value,1,x-1),tmptarget.trans.X);
+        ok:=StrToVal(StrPart(value,x+1,y-x-1),tmptarget.trans.Y);
+        ok:=StrToVal(StrPart(value,y+1,z-y-1),tmptarget.trans.Z);
+        
+        ok:=StrToVal(StrPart(value,z+1,q1-z-1),tmptarget.rot.q1);
+        ok:=StrToVal(StrPart(value,q1+1,q2-q1-1),tmptarget.rot.q2);
+        ok:=StrToVal(StrPart(value,q2+1,q3-q1-1),tmptarget.rot.q3);
+        ok:=StrToVal(StrPart(value,q3+1,q4-q3-1),tmptarget.rot.q4);
+        
+        ok:=StrToVal(StrPart(value,q4+1,c1-q4-1),tmptarget.robconf.cf1);
+        ok:=StrToVal(StrPart(value,c1+1,c4-c1-1),tmptarget.robconf.cf4);
+        ok:=StrToVal(StrPart(value,c4+1,c6-c4-1),tmptarget.robconf.cf6);
+        ok:=StrToVal(StrPart(value,c6+1,1),tmptarget.robconf.cfx);
+        
+        !!DEBUGGING
+        TPWrite "X:"+ValToStr(tmptarget.trans.X);
+        TPWrite "Y:"+ValToStr(tmptarget.trans.Y);
+        TPWrite "Z:"+ValToStr(tmptarget.trans.Z);
+        
+        TPWrite "Q1:"+ValToStr(tmptarget.rot.q1);
+        TPWrite "Q2:"+ValToStr(tmptarget.rot.q2);
+        TPWrite "Q3:"+ValToStr(tmptarget.rot.q3);
+        TPWrite "Q4:"+ValToStr(tmptarget.rot.q4);
+        
+        TPWrite "c1:"+ValToStr(tmptarget.robconf.cf1);
+        TPWrite "c4:"+ValToStr(tmptarget.robconf.cf4);
+        TPWrite "c6:"+ValToStr(tmptarget.robconf.cf6);
+        TPWrite "cx:"+ValToStr(tmptarget.robconf.cfx);
+        
+        
+!        TPWrite "X:"+ValToStr(x);
+!        TPWrite "Y:"+ValToStr(y);
+!        TPWrite "Z:"+ValToStr(z);
+        
+!        TPWrite "Q1:"+ValToStr(q1);
+!        TPWrite "Q2:"+ValToStr(q2);
+!        TPWrite "Q3:"+ValToStr(q3);
+!        TPWrite "Q4:"+ValToStr(4);
+        
+!        TPWrite "c1:"+ValToStr(c1);
+!        TPWrite "c4:"+ValToStr(c4);
+!        TPWrite "c6:"+ValToStr(c6);
+!        TPWrite "cx:"+ValToStr(strlen(value));
+        
+        
+        !!
+        return tmptarget; 
+    endfunc
+    
+    PROC socket_creation()
+
+    ENDPROC
+ 
+      
+      endMODULE

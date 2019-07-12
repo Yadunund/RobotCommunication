@@ -1,0 +1,52 @@
+!!Author:= Yadunund Vijay
+
+MODULE GetJointValues
+    var jointtarget current_joint; 
+    VAR string current_joint_string;
+    
+    
+    PROC GetJointValues_Main()
+        WHILE TRUE DO
+        current_joint:=CJointT();
+        current_joint_string:=JointToString(current_joint);
+        TPWrite(current_joint_string);
+        WaitTime 0.5;
+        ENDWHILE
+    ENDPROC
+    
+    
+    FUNC string JointToString(jointtarget joint)
+        VAR string jointstring:="";
+        VAR num a1;
+        VAR num a2;
+        VAR num a3;
+        VAR num a4;
+        VAR num a5;
+        VAR num a6;
+        
+        VAR num e1;
+        VAR num e2;
+        VAR num e3;
+        VAR num e4;
+        VAR num e5;
+        VAR num e6;
+        
+        a1:= joint.robax.rax_1;
+        a2:= joint.robax.rax_2;
+        a3:= joint.robax.rax_3;
+        a4:= joint.robax.rax_4;
+        a5:= joint.robax.rax_5;
+        a6:= joint.robax.rax_6;
+        
+        e1:=joint.extax.eax_a;
+        e2:=joint.extax.eax_b;
+        e3:=joint.extax.eax_c;
+        e4:=joint.extax.eax_d;
+        e5:=joint.extax.eax_e;
+        e6:=joint.extax.eax_f;
+      
+        jointstring:=ValToStr(a1)+","+ValToStr(a2)+","+ValToStr(a3)+","+ValToStr(a4)+","+ValToStr(a5)+","+ValToStr(a6);
+        !+","+ValToStr(e1)+","+ValToStr(e2)+","+ValToStr(e3)+","+ValToStr(e4)+","+ValToStr(e5)+","+ValToStr(e6);      
+        RETURN jointstring;
+    endfunc
+ENDMODULE
